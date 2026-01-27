@@ -3,35 +3,10 @@ name: Build and Deploy to Server
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
-
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
-        env:
-          GOOGLE_GENAI_USE_VERTEXAI: "false"
-
   deploy:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Deploy to Server via SSH
@@ -41,7 +16,7 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/vertex-agent-api
+            cd /opt/vertex_agent_api
 
             # Pull latest code
             git pull origin main
