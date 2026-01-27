@@ -29,5 +29,5 @@ jobs:
             docker image prune -f
 
             # Health check
-            sleep 15
+            sleep 30
             curl -f http://localhost:8000/health || exit 1
