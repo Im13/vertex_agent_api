@@ -73,6 +73,7 @@ class AutoCreateSessionService(InMemorySessionService):
 # Import agents (after loading .env)
 from agents.basic.agent import root_agent as basic_agent
 from agents.company_policy.agent import root_agent as company_policy_agent
+from agents.procurement.agent import root_agent as procurement_agent
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -101,6 +102,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 AGENTS = {
     "basic": basic_agent,
     "company_policy": company_policy_agent,
+    "procurement": procurement_agent,
 }
 
 # Create runners for each agent
