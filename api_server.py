@@ -9,11 +9,15 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 # Load environment variables FIRST before importing agents
 env_path = Path(__file__).parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -87,6 +91,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Tạo limiter để bảo vệ API
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Agent registry
 AGENTS = {
@@ -185,94 +194,23 @@ async def list_agents():
         ))
     return agents_info
 
-@app.post("/agents/{agent_name}/chat", response_model=ChatResponse, tags=["Chat"])
-async def chat_with_agent(
-    agent_name: str,
-    request: ChatRequest = Body(...)
-):
-    """
-    Chat with a specific agent
-
-    - **agent_name**: Name of the agent (basic, financial, document_qa, company_policy)
-    - **message**: Your message to the agent
-    - **user_id**: (Optional) User identifier
-    - **session_id**: (Optional) Session ID for conversation continuity
-
-    Example:
-    ```json
-    {
-        "message": "What is the leave policy?",
-        "user_id": "user123",
-        "session_id": null
-    }
-    ```
-    """
-    # Validate agent exists
-    if agent_name not in AGENTS:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-
-    # Get user_id and session_id
-    user_id = request.user_id or "default_user"
-    session_id = request.session_id or str(uuid.uuid4())
-
-    # Get runner
-    runner = RUNNERS[agent_name]
-
-    # Create user message
-    user_message = adk_types.Content(
-        role="user",
-        parts=[adk_types.Part(text=request.message)]
-    )
-
-    try:
-        # Run agent - AutoCreateSessionService will create session automatically
-        events_async = runner.run_async(
-            user_id=user_id,
-            session_id=session_id,
-            new_message=user_message
-        )
-
-        # Collect response
-        agent_response = "(No response generated)"
-        async for event in events_async:
-            # Extract final response
-            if event.is_final_response() and event.content and event.content.role == "model":
-                if event.content.parts and event.content.parts[0].text:
-                    agent_response = event.content.parts[0].text
-
-        return ChatResponse(
-            agent=agent_name,
-            message=agent_response,
-            session_id=session_id,
-            timestamp=datetime.now().isoformat()
-        )
-
-    except Exception as e:
-        # Log the full error for debugging
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Error in chat endpoint: {error_details}")
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error running agent: {str(e)}"
-        )
-
 @app.post("/public/agents/{agent_name}/chat", response_model=ChatResponse, tags=["Public Chat"])
+@limiter.limit("3/minute")
 async def public_chat_with_agent(
+    request: Request,
     agent_name: str,
-    request: ChatRequest = Body(...)
+    chat_request: ChatRequest = Body(...)
 ):
     if agent_name not in AGENTS:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-    
-    user_id = request.user_id or "anonymous"
-    session_id = request.session_id or str(uuid.uuid4())
+
+    user_id = chat_request.user_id or "anonymous"
+    session_id = chat_request.session_id or str(uuid.uuid4())
 
     runner = RUNNERS[agent_name]
     user_message = adk_types.Content(
         role="user",
-        parts=[adk_types.Part(text=request.message)]
+        parts=[adk_types.Part(text=chat_request.message)]
     )
 
     try:
