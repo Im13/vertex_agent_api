@@ -13,7 +13,7 @@ jobs:
 
       - name: Build and restart
         run: |
-          cd /opt/vertex_agent_api
+          cd ~/opt/vertex_agent_api
           git pull origin main
           docker compose down
           docker compose up -d --build
