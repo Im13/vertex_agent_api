@@ -28,7 +28,7 @@ policy_search_tool = VertexAiSearchTool(
 # Define the root agent
 root_agent = LlmAgent(
     name="company_policy_agent",
-    model="gemini-2.0-flash-exp",
+    model="gemini-2.5-pro",
     tools=[policy_search_tool],
     instruction="""You are a Company Policy Assistant. Your role is to help employees understand company policies and procedures.
 
