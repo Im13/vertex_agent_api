@@ -197,7 +197,7 @@ async def list_agents():
     return agents_info
 
 @app.post("/public/agents/{agent_name}/chat", response_model=ChatResponse, tags=["Public Chat"])
-@limiter.limit("3/minute")
+@limiter.limit("15/minute")
 async def public_chat_with_agent(
     request: Request,
     agent_name: str,
