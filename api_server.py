@@ -197,7 +197,7 @@ async def list_agents():
     return agents_info
 
 @app.post("/public/agents/{agent_name}/chat", response_model=ChatResponse, tags=["Public Chat"])
-@limiter.limit("2/minute")
+@limiter.limit("15/minute")
 async def public_chat_with_agent(
     request: Request,
     agent_name: str,
@@ -205,7 +205,7 @@ async def public_chat_with_agent(
 ):
     if agent_name not in AGENTS:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-
+    
     user_id = chat_request.user_id or "anonymous"
     session_id = chat_request.session_id or str(uuid.uuid4())
 
