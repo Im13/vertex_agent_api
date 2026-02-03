@@ -5,6 +5,7 @@ Provides REST endpoints to interact with all agents via HTTP.
 
 import uuid
 import logging
+import asyncio
 import time as time_module
 from typing import Optional, Dict, List
 from datetime import datetime
@@ -133,23 +134,38 @@ RUNNERS["company_policy_secondary"] = Runner(
     artifact_service=InMemoryArtifactService()
 )
 
-# Helper function to run an agent and get response
+# Helper function to run an agent and get response with retry
+MAX_RETRIES = 3
+
 async def run_agent(runner: Runner, user_id: str, session_id: str, message: str) -> str:
     user_message = adk_types.Content(
         role="user",
         parts=[adk_types.Part(text=message)]
     )
-    events_async = runner.run_async(
-        user_id=user_id,
-        session_id=session_id,
-        new_message=user_message
-    )
-    agent_response = "(No response generated)"
-    async for event in events_async:
-        if event.is_final_response() and event.content and event.content.role == "model":
-            if event.content.parts and event.content.parts[0].text:
-                agent_response = event.content.parts[0].text
-    return agent_response
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            events_async = runner.run_async(
+                user_id=user_id,
+                session_id=session_id,
+                new_message=user_message
+            )
+            agent_response = "(No response generated)"
+            async for event in events_async:
+                if event.is_final_response() and event.content and event.content.role == "model":
+                    if event.content.parts and event.content.parts[0].text:
+                        agent_response = event.content.parts[0].text
+            return agent_response
+
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait_time = (attempt + 1) * 10  # 10s, 20s, 30s
+                logger.warning(f"[RETRY] Rate limited (429). Waiting {wait_time}s... (attempt {attempt + 1}/{MAX_RETRIES})")
+                await asyncio.sleep(wait_time)
+            else:
+                raise  # Re-raise non-429 errors immediately
+
+    raise Exception("Hệ thống đang quá tải, vui lòng thử lại sau 1 phút.")
 
 # ============================================================================
 # Request/Response Models
