@@ -16,6 +16,7 @@ services:
       - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
       - COMPANY_POLICY_DATASTORE_ID=${COMPANY_POLICY_DATASTORE_ID}
+      - COMPANY_POLICY_PRIMARY_DATASTORE_ID=${COMPANY_POLICY_PRIMARY_DATASTORE_ID}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
