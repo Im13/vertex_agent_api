@@ -4,6 +4,8 @@ Provides REST endpoints to interact with all agents via HTTP.
 """
 
 import uuid
+import logging
+import time as time_module
 from typing import Optional, Dict, List
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +14,14 @@ from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("agent_api")
 
 # Load environment variables FIRST before importing agents
 env_path = Path(__file__).parent / '.env'
@@ -203,11 +213,17 @@ async def public_chat_with_agent(
     agent_name: str,
     chat_request: ChatRequest = Body(...)
 ):
+    client_ip = get_remote_address(request)
+    start_time = time_module.time()
+
     if agent_name not in AGENTS:
+        logger.warning(f"[REQUEST] ip={client_ip} agent={agent_name} - Agent not found")
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-    
+
     user_id = chat_request.user_id or "anonymous"
     session_id = chat_request.session_id or str(uuid.uuid4())
+
+    logger.info(f"[REQUEST] ip={client_ip} agent={agent_name} user={user_id} session={session_id} message=\"{chat_request.message[:100]}\"")
 
     runner = RUNNERS[agent_name]
     user_message = adk_types.Content(
@@ -228,14 +244,19 @@ async def public_chat_with_agent(
                 if event.content.parts and event.content.parts[0].text:
                     agent_response = event.content.parts[0].text
 
+        elapsed = round(time_module.time() - start_time, 2)
+        logger.info(f"[RESPONSE] ip={client_ip} agent={agent_name} user={user_id} session={session_id} status=200 time={elapsed}s response=\"{agent_response[:100]}\"")
+
         return ChatResponse(
             agent=agent_name,
             message=agent_response,
             session_id=session_id,
             timestamp=datetime.now().isoformat()
         )
-    
+
     except Exception as e:
+        elapsed = round(time_module.time() - start_time, 2)
+        logger.error(f"[ERROR] ip={client_ip} agent={agent_name} user={user_id} session={session_id} time={elapsed}s error=\"{str(e)}\"")
         raise HTTPException(
             status_code=500,
             detail=f"Error running agent: {str(e)}"
