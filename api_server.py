@@ -82,7 +82,7 @@ class AutoCreateSessionService(InMemorySessionService):
 
 # Import agents (after loading .env)
 from agents.basic.agent import root_agent as basic_agent
-from agents.company_policy.agent import root_agent as company_policy_agent
+from agents.company_policy.agent import primary_agent, secondary_agent
 from agents.procurement.agent import root_agent as procurement_agent
 
 # Initialize FastAPI app
@@ -111,13 +111,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Agent registry
 AGENTS = {
     "basic": basic_agent,
-    "company_policy": company_policy_agent,
+    "company_policy": primary_agent,  # default for /agents list
     "procurement": procurement_agent,
 }
 
 # Create runners for each agent
-# Each runner gets its own session and artifact service for isolation
-# Using AutoCreateSessionService so sessions are created automatically
 RUNNERS: Dict[str, Runner] = {}
 for agent_name, agent in AGENTS.items():
     RUNNERS[agent_name] = Runner(
@@ -126,6 +124,32 @@ for agent_name, agent in AGENTS.items():
         session_service=AutoCreateSessionService(),
         artifact_service=InMemoryArtifactService()
     )
+
+# Create separate runner for secondary company policy agent
+RUNNERS["company_policy_secondary"] = Runner(
+    agent=secondary_agent,
+    app_name="company_policy_secondary_app",
+    session_service=AutoCreateSessionService(),
+    artifact_service=InMemoryArtifactService()
+)
+
+# Helper function to run an agent and get response
+async def run_agent(runner: Runner, user_id: str, session_id: str, message: str) -> str:
+    user_message = adk_types.Content(
+        role="user",
+        parts=[adk_types.Part(text=message)]
+    )
+    events_async = runner.run_async(
+        user_id=user_id,
+        session_id=session_id,
+        new_message=user_message
+    )
+    agent_response = "(No response generated)"
+    async for event in events_async:
+        if event.is_final_response() and event.content and event.content.role == "model":
+            if event.content.parts and event.content.parts[0].text:
+                agent_response = event.content.parts[0].text
+    return agent_response
 
 # ============================================================================
 # Request/Response Models
@@ -225,24 +249,24 @@ async def public_chat_with_agent(
 
     logger.info(f"[REQUEST] ip={client_ip} agent={agent_name} user={user_id} session={session_id} message=\"{chat_request.message[:100]}\"")
 
-    runner = RUNNERS[agent_name]
-    user_message = adk_types.Content(
-        role="user",
-        parts=[adk_types.Part(text=chat_request.message)]
-    )
-
     try:
-        events_async = runner.run_async(
-            user_id=user_id,
-            session_id=session_id,
-            new_message=user_message
-        )
+        # Company policy: search primary first, fallback to secondary
+        if agent_name == "company_policy":
+            logger.info(f"[POLICY] Searching primary data store...")
+            agent_response = await run_agent(
+                RUNNERS["company_policy"], user_id, session_id, chat_request.message
+            )
 
-        agent_response = "(No response generated)"
-        async for event in events_async:
-            if event.is_final_response() and event.content and event.content.role == "model":
-                if event.content.parts and event.content.parts[0].text:
-                    agent_response = event.content.parts[0].text
+            # If primary didn't find info, try secondary
+            if "PRIMARY_NOT_FOUND" in agent_response:
+                logger.info(f"[POLICY] Primary not found, searching secondary data store...")
+                agent_response = await run_agent(
+                    RUNNERS["company_policy_secondary"], user_id, session_id, chat_request.message
+                )
+        else:
+            agent_response = await run_agent(
+                RUNNERS[agent_name], user_id, session_id, chat_request.message
+            )
 
         elapsed = round(time_module.time() - start_time, 2)
         logger.info(f"[RESPONSE] ip={client_ip} agent={agent_name} user={user_id} session={session_id} status=200 time={elapsed}s response=\"{agent_response[:100]}\"")

@@ -10,7 +10,7 @@ primary_search_tool = VertexAiSearchTool(data_store_id=primary_datastore_path)
 
 primary_agent = LlmAgent(
     name="primary_policy_agent",
-    model="gemini-2.5-pro",
+    model="gemini-2.0-flash-exp",
     tools=[primary_search_tool],
     instruction="""Search tài liệu chính sách chính và trả lời ngay.
     Nếu KHÔNG tìm thấy, trả lời chính xác: "PRIMARY_NOT_FOUND"
