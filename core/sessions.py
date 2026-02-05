@@ -1,7 +1,3 @@
-"""
-Custom session service with auto-creation support.
-"""
-
 import time
 from google.adk.sessions import InMemorySessionService, Session
 

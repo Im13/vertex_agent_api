@@ -1,7 +1,3 @@
-"""
-API endpoint handlers.
-"""
-
 import uuid
 import time as time_module
 from datetime import datetime

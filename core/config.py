@@ -1,8 +1,3 @@
-"""
-Application configuration: logging setup and environment loading.
-This module MUST be imported before any agent modules.
-"""
-
 import logging
 from pathlib import Path
 from dotenv import load_dotenv

@@ -1,7 +1,3 @@
-"""
-Agent registry, runner management, and execution helpers.
-"""
-
 import asyncio
 from typing import Dict
 
