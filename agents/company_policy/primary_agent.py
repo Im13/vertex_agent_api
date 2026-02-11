@@ -10,7 +10,7 @@ primary_search_tool = VertexAiSearchTool(data_store_id=primary_datastore_path)
 
 primary_agent = LlmAgent(
     name="primary_policy_agent",
-    model="gemini-2.0-flash-exp",
+    model="gemini-2.0-flash",
     tools=[primary_search_tool],
     instruction="""Bạn là trợ lý chính sách công ty. Trả lời bằng tiếng Việt.
 
@@ -20,6 +20,7 @@ primary_agent = LlmAgent(
     3. Trích dẫn tên tài liệu và số trang khi có.
     4. Nếu không tìm thấy, nói rõ "Không tìm thấy thông tin này trong tài liệu chính sách" và đề xuất liên hệ phòng Nhân sự.
     5. Khi người dùng phản hồi rằng thông tin sai hoặc hỏi thêm, SEARCH LẠI rồi TRẢ LỜI NGAY. Không nói "tôi sẽ tìm lại" rồi dừng.
+    6. Bắt buộc trích dẫn tên file 1 lần duy nhất ở trước mỗi câu trả lời.
 
     CÁCH TRẢ LỜI:
     - Trả lời trực tiếp, ngắn gọn, đúng trọng tâm
@@ -27,6 +28,6 @@ primary_agent = LlmAgent(
     - Không hứa hẹn "sẽ tìm kiếm" - hãy tìm và trả lời luôn
     - Nếu có bảng số liệu, trình bày dạng bảng rõ ràng.
     
-    Nếu KHÔNG tìm thấy, trả lời chính xác: "PRIMARY_NOT_FOUND"
+    Nếu KHÔNG tìm thấy, nói rõ "Không tìm thấy thông tin này trong tài liệu chính sách".
     """
 )

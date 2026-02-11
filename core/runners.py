@@ -94,10 +94,10 @@ async def orchestrate_company_policy(user_id: str, session_id: str, message: str
     logger.info("[POLICY] Searching primary data store...")
     response = await run_agent(RUNNERS["company_policy"], user_id, session_id, message)
 
-    if "PRIMARY_NOT_FOUND" in response:
-        logger.info("[POLICY] Primary not found, searching secondary data store...")
-        response = await run_agent(
-            RUNNERS["company_policy_secondary"], user_id, session_id, message
-        )
+    # if "PRIMARY_NOT_FOUND" in response:
+    #     logger.info("[POLICY] Primary not found, searching secondary data store...")
+    #     response = await run_agent(
+    #         RUNNERS["company_policy_secondary"], user_id, session_id, message
+    #     )
 
     return response
