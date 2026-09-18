@@ -45,3 +45,5 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: str
     agents_available: int
+
+# Add to rebuild
