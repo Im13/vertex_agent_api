@@ -10,7 +10,7 @@ secondary_search_tool = VertexAiSearchTool(data_store_id=secondary_datastore_pat
 
 secondary_agent = LlmAgent(
     name="secondary_policy_agent",
-    model="gemini-2.0-flash-exp",
+    model="gemini-2.5-flash",
     tools=[secondary_search_tool],
     instruction="""Bạn là trợ lý chính sách công ty. Trả lời bằng tiếng Việt.
 
